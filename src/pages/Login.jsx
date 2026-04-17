@@ -1,0 +1,34 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { GiFarmer } from 'react-icons/gi'
+
+const Login = () => {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const { login } = useAuth()
+  const navigate = useNavigate()
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (login(username, password)) navigate('/home')
+    else setError('Invalid credentials. Use AMIT / AMIT@123')
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-primary to-green-700 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+        <div className="text-center mb-8"><div className="bg-primary inline-block p-4 rounded-full mb-4"><GiFarmer className="text-4xl text-white" /></div><h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2><p className="text-gray-600">Amit Babber Trading & Co.</p></div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="input-field" required />
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field" required />
+          {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+          <button type="submit" className="btn-primary w-full">Login</button>
+        </form>
+        <div className="mt-6 text-center text-sm text-gray-500">Demo: AMIT / AMIT@123</div>
+      </div>
+    </div>
+  )
+}
+export default Login

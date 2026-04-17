@@ -1,0 +1,24 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['logo512.png'],
+      manifest: {
+        name: 'Amit Babber Trading and Company',
+        short_name: 'AB Trading',
+        description: 'Mandi Crop Transaction Calculator',
+        theme_color: '#15803d',
+        background_color: '#ffffff',
+        display: 'standalone',
+        icons: [
+          { src: 'logo512.png', sizes: '512x512', type: 'image/png' }
+        ]
+      }
+    })
+  ]
+})
