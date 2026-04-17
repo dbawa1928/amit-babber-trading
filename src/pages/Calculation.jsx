@@ -26,7 +26,6 @@ const Calculation = () => {
     rate: 2585,
     commissionPercent: 2.5,
     labourCost: 40,
-    transportCost: 15,
     farmerChargesPerBag: 7.16,
     farmerChargesTotal: 0
   })
@@ -42,9 +41,9 @@ const Calculation = () => {
   }, [])
 
   const cropDefaults = {
-    Wheat: { rate: 2585, commissionPercent: 2.5, labourCost: 40, transportCost: 15 },
-    Paddy: { rate: 2370, commissionPercent: 2.5, labourCost: 40, transportCost: 15 },
-    Basmati: { rate: 4000, commissionPercent: 2.5, labourCost: 40, transportCost: 15 }
+    Wheat: { rate: 2585, commissionPercent: 2.5, labourCost: 40 },
+    Paddy: { rate: 2370, commissionPercent: 2.5, labourCost: 40 },
+    Basmati: { rate: 4000, commissionPercent: 2.5, labourCost: 40 }
   }
 
   useEffect(() => {
@@ -53,8 +52,7 @@ const Calculation = () => {
       ...prev,
       rate: defaults.rate,
       commissionPercent: defaults.commissionPercent,
-      labourCost: defaults.labourCost,
-      transportCost: defaults.transportCost
+      labourCost: defaults.labourCost
     }))
   }, [formData.crop])
 
@@ -97,7 +95,7 @@ const Calculation = () => {
   }
 
   const generateHash = (data) => {
-    return `${data.farmerName}|${data.crop}|${data.date}|${data.weightKg}|${data.bagWeight}|${data.rate}|${data.commissionPercent}|${data.labourCost}|${data.transportCost}|${data.farmerChargesPerBag}`
+    return `${data.farmerName}|${data.crop}|${data.date}|${data.weightKg}|${data.bagWeight}|${data.rate}|${data.commissionPercent}|${data.labourCost}|${data.farmerChargesPerBag}`
   }
 
   const calculateAndSave = async () => {
@@ -119,8 +117,8 @@ const Calculation = () => {
       totalCharges = parseFloat(formData.farmerChargesTotal) || 0
     } else {
       const commissionAmount = (totalPrice * parseFloat(formData.commissionPercent)) / 100
-      const labourTransport = parseFloat(formData.labourCost) + parseFloat(formData.transportCost)
-      totalCharges = commissionAmount + labourTransport
+      const labourCost = parseFloat(formData.labourCost) || 0
+      totalCharges = commissionAmount + labourCost
     }
     const netAmount = totalPrice - totalCharges
 
@@ -154,7 +152,7 @@ const Calculation = () => {
       rate: rate,
       commission: formData.crop === 'Wheat' ? 0 : parseFloat(formData.commissionPercent),
       labour: formData.crop === 'Wheat' ? 0 : parseFloat(formData.labourCost),
-      transport: formData.crop === 'Wheat' ? 0 : parseFloat(formData.transportCost),
+      transport: 0,
       total_amount: totalPrice,
       net_amount: netAmount,
       payment_status: 'unpaid',
@@ -163,14 +161,15 @@ const Calculation = () => {
       bags: formData.bags,
       farmer_charges_per_bag: formData.farmerChargesPerBag,
       farmer_charges_total: totalCharges,
-      user_id: user?.id   // <<< Store which user created this transaction
+      user_id: user?.id,
+      tenant_id: user?.tenantId
     }
 
     const { error } = await supabase.from('transactions').insert([record])
     if (error) {
       showToast('Error saving', 'error')
     } else {
-      showToast('Saved!', 'success')
+      showToast('Saved!', 'success')   // Only toast, no confetti
       setLastSavedHash(currentHash)
       clearDraft()
     }
@@ -189,7 +188,6 @@ const Calculation = () => {
       rate: 2585,
       commissionPercent: 2.5,
       labourCost: 40,
-      transportCost: 15,
       farmerChargesPerBag: 7.16,
       farmerChargesTotal: 0
     })
@@ -225,7 +223,6 @@ const Calculation = () => {
               <>
                 <div><label className="block font-medium mb-1">Commission (%)</label><input type="number" name="commissionPercent" value={formData.commissionPercent} onChange={handleInputChange} className="input-field" step="0.1" /></div>
                 <div><label className="block font-medium mb-1">Labour (₹)</label><input type="number" name="labourCost" value={formData.labourCost} onChange={handleInputChange} className="input-field" step="0.01" /></div>
-                <div><label className="block font-medium mb-1">Transport (₹)</label><input type="number" name="transportCost" value={formData.transportCost} onChange={handleInputChange} className="input-field" step="0.01" /></div>
               </>
             )}
             <div><label className="block font-medium mb-1">Rate (₹ per Quintal)</label><input type="number" name="rate" value={formData.rate} onChange={handleInputChange} className="input-field" step="0.01" /></div>
