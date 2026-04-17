@@ -10,19 +10,40 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const { showToast } = useToast()
 
+  // Function to refresh user data from database
+  const refreshUser = async (userId) => {
+    if (!userId) return null
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, username, role, tenant_id')
+      .eq('id', userId)
+      .maybeSingle()
+    if (error || !data) return null
+    const userData = {
+      id: data.id,
+      username: data.username,
+      role: data.role,
+      tenantId: data.tenant_id || data.id
+    }
+    localStorage.setItem('cx_user', JSON.stringify(userData))
+    setUser(userData)
+    return userData
+  }
+
   useEffect(() => {
     const storedUser = localStorage.getItem('cx_user')
     if (storedUser) {
       const parsed = JSON.parse(storedUser)
-      // If tenantId is missing, clear storage (force fresh login)
       if (!parsed.tenantId) {
-        localStorage.removeItem('cx_user')
-        setUser(null)
+        // Try to refresh from database
+        refreshUser(parsed.id).then(() => setLoading(false))
       } else {
         setUser(parsed)
+        setLoading(false)
       }
+    } else {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   const register = async (username, password) => {
@@ -182,8 +203,17 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{
-      user, login, logout, register, changePassword, changeUsername,
-      addWorker, deleteWorker, getWorkers, loading
+      user,
+      login,
+      logout,
+      register,
+      changePassword,
+      changeUsername,
+      addWorker,
+      deleteWorker,
+      getWorkers,
+      refreshUser,
+      loading
     }}>
       {children}
     </AuthContext.Provider>
