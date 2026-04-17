@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { GiFarmer } from 'react-icons/gi'
 
@@ -23,14 +23,17 @@ const Login = () => {
         <div className="text-center mb-8">
           <div className="bg-primary inline-block p-4 rounded-full mb-4"><GiFarmer className="text-4xl text-white" /></div>
           <h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2>
-          <p className="text-gray-600">Amit Babber Trading Company.</p>
+          <p className="text-gray-600">Amit Babber Trading Company</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="input-field" required />
-          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field" required />
+          <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="input-field" required autoComplete="username" />
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field" required autoComplete="current-password" />
           {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
           <button type="submit" className="btn-primary w-full">Login</button>
         </form>
+        <div className="mt-6 text-center text-sm">
+          Don't have an account? <Link to="/register" className="text-primary hover:underline">Register</Link>
+        </div>
       </div>
     </div>
   )

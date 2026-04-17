@@ -64,23 +64,36 @@ const Home = () => {
       <Navbar />
       <main className="flex-grow">
         <div className="bg-gradient-to-r from-primary to-green-600 text-white py-12 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold">AMIT BABBER TRADING COMPANY</h1>
-          <p className="text-green-100 mt-3 text-lg">Mandi Crop Transaction Platform</p>
+          <h1 className="text-3xl md:text-4xl font-bold px-4">AMIT BABBER TRADING COMPANY</h1>
+          <p className="text-green-100 mt-3 text-lg px-4">Mandi Crop Transaction Platform</p>
         </div>
         <div className="max-w-6xl mx-auto px-4 py-8">
-          {/* Today's Summary Card */}
-          <div className="mb-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-l-8 border-primary">
-            <div className="flex items-center gap-3 mb-4">
-              <FaTractor className="text-2xl text-primary" />
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Today's Summary ({new Date().toLocaleDateString()})</h2>
+          {/* Today's Summary Card - FULLY RESPONSIVE */}
+          <div className="mb-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 sm:p-6 border-l-8 border-primary">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <FaTractor className="text-2xl text-primary flex-shrink-0" />
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white">
+                  Today's Summary ({new Date().toLocaleDateString()})
+                </h2>
+              </div>
             </div>
             {summaryError ? (
-              <div className="text-red-500 text-center">Unable to load summary: {summaryError}</div>
+              <div className="text-red-500 text-center py-4">Unable to load summary: {summaryError}</div>
             ) : (
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div><p className="text-sm text-gray-500">Total Bags</p><p className="text-2xl font-bold text-primary">{todaySummary.totalBags.toFixed(0)}</p></div>
-                <div><p className="text-sm text-gray-500">Total Weight (KG)</p><p className="text-2xl font-bold text-primary">{todaySummary.totalWeight.toFixed(0)}</p></div>
-                <div><p className="text-sm text-gray-500">Net Amount (₹)</p><p className="text-2xl font-bold text-primary">₹{todaySummary.netAmount.toFixed(2)}</p></div>
+              <div className="flex flex-col sm:flex-row justify-around gap-4 sm:gap-6">
+                <div className="flex-1 text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Total Bags</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-primary">{todaySummary.totalBags.toFixed(0)}</p>
+                </div>
+                <div className="flex-1 text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Total Weight (KG)</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-primary">{todaySummary.totalWeight.toFixed(0)}</p>
+                </div>
+                <div className="flex-1 text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Net Amount (₹)</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-primary">₹{todaySummary.netAmount.toFixed(2)}</p>
+                </div>
               </div>
             )}
           </div>

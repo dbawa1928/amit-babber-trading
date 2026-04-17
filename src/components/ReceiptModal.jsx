@@ -8,12 +8,12 @@ const ReceiptModal = ({ isOpen, onClose, type, data }) => {
   const [bagWeight, setBagWeight] = useState(50)
   const [bags, setBags] = useState('')
   const [farmerChargesPerBag, setFarmerChargesPerBag] = useState(0)
-  const [buyerChargesPerBag, setBuyerChargesPerBag] = useState({ labour: 0, silai: 0 }) // transport removed
+  const [buyerChargesPerBag, setBuyerChargesPerBag] = useState({ labour: 0, silai: 0 })
 
   const farmerCharges = { 50: 7.16, 30: 4.30 }
   const buyerCharges = {
-    50: { labour: 7.50, silai: 1.71 }, // transport removed
-    30: { labour: 4.46, silai: 1.71 }  // transport removed
+    50: { labour: 7.50, silai: 1.71 },
+    30: { labour: 4.46, silai: 1.71 }
   }
 
   useEffect(() => {
@@ -68,7 +68,7 @@ const ReceiptModal = ({ isOpen, onClose, type, data }) => {
         </div>
         <div ref={receiptRef} className="p-6 bg-white dark:bg-gray-800">
           <div className="text-center border-b-2 border-primary pb-6 mb-6">
-            <h1 className="text-3xl font-bold text-primary uppercase">Code-Xyra Trading</h1>
+            <h1 className="text-3xl font-bold text-primary uppercase">Amit Babber Trading Company</h1>
             <p className="text-gray-600">Mandi Crop Transaction Receipt</p>
             <p className="inline-block bg-primary/10 text-primary px-4 py-1 rounded-full text-sm mt-2">{type} FORM | {new Date(data.date).toLocaleDateString()}</p>
           </div>
