@@ -1,5 +1,7 @@
+// src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
+import ScrollToTop from './components/ScrollToTop'
 import Splash from './pages/Splash'
 import Login from './pages/Login'
 import Home from './pages/Home'
@@ -14,9 +16,18 @@ import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
   const { loading } = useAuth()
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-primary text-white">Loading...</div>
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-primary text-white">
+        Loading...
+      </div>
+    )
+  }
+
   return (
     <Router>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Splash />} />
         <Route path="/login" element={<Login />} />
@@ -28,9 +39,10 @@ function App() {
         <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
         <Route path="/privacy" element={<ProtectedRoute><PrivacyPolicy /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   )
 }
+
 export default App
