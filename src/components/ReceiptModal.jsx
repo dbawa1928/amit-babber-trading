@@ -87,7 +87,7 @@ const ReceiptModal = ({ isOpen, onClose, type, data }) => {
 
         <div ref={receiptRef} className="p-6 bg-white dark:bg-gray-800">
           <div className="text-center border-b-2 border-primary pb-6 mb-6">
-            <h1 className="text-3xl font-bold text-primary uppercase">Amit Babber Trading and Company</h1>
+            <h1 className="text-3xl font-bold text-primary uppercase">Amit Babber Trading Company</h1>
             <p className="text-gray-600">Mandi Crop Transaction Receipt</p>
             <p className="inline-block bg-primary/10 text-primary px-4 py-1 rounded-full text-sm mt-2">{type} FORM | {new Date(data.date).toLocaleDateString()}</p>
           </div>
