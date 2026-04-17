@@ -19,7 +19,7 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary to-green-700 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-        <div className="text-center mb-8"><div className="bg-primary inline-block p-4 rounded-full mb-4"><GiFarmer className="text-4xl text-white" /></div><h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2><p className="text-gray-600">Amit Babber Trading & Co.</p></div>
+        <div className="text-center mb-8"><div className="bg-primary inline-block p-4 rounded-full mb-4"><GiFarmer className="text-4xl text-white" /></div><h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2><p className="text-gray-600">Amit Babber Trading Co.</p></div>
         <form onSubmit={handleSubmit} className="space-y-6">
           <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="input-field" required />
           <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field" required />

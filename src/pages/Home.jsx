@@ -20,7 +20,7 @@ const Home = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       <Navbar />
       <main className="flex-grow">
-        <div className="bg-gradient-to-r from-primary to-green-600 text-white py-12 text-center"><h1 className="text-3xl md:text-4xl font-bold">AMIT BABBER TRADING AND COMPANY</h1><p className="text-green-100 mt-3 text-lg">Mandi Crop Transaction Platform</p></div>
+        <div className="bg-gradient-to-r from-primary to-green-600 text-white py-12 text-center"><h1 className="text-3xl md:text-4xl font-bold">AMIT BABBER TRADING COMPANY</h1><p className="text-green-100 mt-3 text-lg">Mandi Crop Transaction Platform</p></div>
         <div className="max-w-6xl mx-auto px-4 py-12">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {menuItems.map((item) => (

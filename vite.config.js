@@ -9,7 +9,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['logo512.png'],
       manifest: {
-        name: 'Amit Babber Trading and Company',
+        name: 'Amit Babber Trading Company',
         short_name: 'AB Trading',
         description: 'Mandi Crop Transaction Calculator',
         theme_color: '#15803d',

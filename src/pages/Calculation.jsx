@@ -13,8 +13,21 @@ const Calculation = () => {
   const { showToast } = useToast()
   const { t } = useLanguage()
   const [formData, setFormData] = useState({
-    crop: 'Wheat', farmerName: '', phone: '', date: new Date().toISOString().split('T')[0],
-    quantity: '', rate: 2585, commission: 2.5, labour: 40, transport: 15
+    crop: 'Wheat',
+    farmerName: '',
+    phone: '',
+    date: new Date().toISOString().split('T')[0],
+    bagWeight: 50,
+    bags: '',
+    weightKg: '',
+    quantity: '',
+    // For non‑wheat crops
+    commissionPercent: 2.5,
+    labourCost: 40,
+    transportCost: 15,
+    // For wheat – farmer per‑bag charges
+    farmerChargesPerBag: 7.16, // auto for 50kg
+    farmerChargesTotal: 0
   })
   const [calculationResult, setCalculationResult] = useState(null)
   const [showIModal, setShowIModal] = useState(false)
@@ -22,41 +35,172 @@ const Calculation = () => {
   const [lastSavedHash, setLastSavedHash] = useState(null)
   const { loadDraft, clearDraft } = useAutoSave('calc_draft', formData)
 
-  useEffect(() => { const draft = loadDraft(); if (draft?.farmerName) setFormData(draft) }, [])
+  // Load draft
+  useEffect(() => {
+    const draft = loadDraft()
+    if (draft && draft.farmerName) setFormData(draft)
+  }, [])
 
-  const cropDefaults = { Wheat: { rate: 2585, commission: 2.5, labour: 40, transport: 15 }, Paddy: { rate: 2370, commission: 2.5, labour: 40, transport: 15 }, Basmati: { rate: 4000, commission: 2.5, labour: 40, transport: 15 } }
-  useEffect(() => { const d = cropDefaults[formData.crop]; setFormData(prev => ({ ...prev, rate: d.rate, commission: d.commission, labour: d.labour, transport: d.transport })) }, [formData.crop])
+  // Crop defaults (rates, etc.)
+  const cropDefaults = {
+    Wheat: { rate: 2585, commissionPercent: 2.5, labourCost: 40, transportCost: 15 },
+    Paddy: { rate: 2370, commissionPercent: 2.5, labourCost: 40, transportCost: 15 },
+    Basmati: { rate: 4000, commissionPercent: 2.5, labourCost: 40, transportCost: 15 }
+  }
 
-  const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  // Update rate and other defaults when crop changes
+  useEffect(() => {
+    const defaults = cropDefaults[formData.crop]
+    setFormData(prev => ({
+      ...prev,
+      rate: defaults.rate,
+      commissionPercent: defaults.commissionPercent,
+      labourCost: defaults.labourCost,
+      transportCost: defaults.transportCost
+    }))
+  }, [formData.crop])
 
-  const generateHash = (data) => `${data.farmerName}|${data.crop}|${data.date}|${data.quantity}|${data.rate}|${data.commission}|${data.labour}|${data.transport}`
+  // Auto‑set farmer charges per bag for Wheat based on bag weight
+  useEffect(() => {
+    if (formData.crop === 'Wheat') {
+      const bagWt = parseFloat(formData.bagWeight)
+      let perBag = 0
+      if (bagWt === 50) perBag = 7.16   // Cleaning 2.55 + Commission 4.61
+      else if (bagWt === 30) perBag = 4.30 // Cleaning 1.56 + Commission 2.74
+      else perBag = 0 // custom bag weight, user must enter manually
+      setFormData(prev => ({ ...prev, farmerChargesPerBag: perBag }))
+    }
+  }, [formData.crop, formData.bagWeight])
+
+  // Auto‑calculate total weight and quantity from bags and bag weight
+  useEffect(() => {
+    const bagWt = parseFloat(formData.bagWeight) || 50
+    const numBags = parseFloat(formData.bags)
+    if (!isNaN(numBags) && numBags > 0) {
+      const totalKg = numBags * bagWt
+      const totalQtls = totalKg / 100
+      setFormData(prev => ({
+        ...prev,
+        weightKg: totalKg.toFixed(2),
+        quantity: totalQtls.toFixed(2),
+        farmerChargesTotal: (prev.farmerChargesPerBag * numBags).toFixed(2)
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        weightKg: '',
+        quantity: '',
+        farmerChargesTotal: 0
+      }))
+    }
+  }, [formData.bags, formData.bagWeight, formData.farmerChargesPerBag])
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const generateHash = (data) => {
+    return `${data.farmerName}|${data.crop}|${data.date}|${data.weightKg}|${data.bagWeight}|${data.rate}|${data.commissionPercent}|${data.labourCost}|${data.transportCost}|${data.farmerChargesPerBag}`
+  }
 
   const calculateAndSave = async () => {
-    if (!formData.farmerName.trim()) return showToast('Enter farmer name', 'error')
-    const qty = parseFloat(formData.quantity) || 0
-    if (qty <= 0) return showToast('Enter valid quantity', 'error')
+    if (!formData.farmerName.trim()) {
+      showToast('Enter farmer name', 'error')
+      return
+    }
+    const kg = parseFloat(formData.weightKg) || 0
+    if (kg <= 0) {
+      showToast('Enter valid number of bags', 'error')
+      return
+    }
+    const qty = kg / 100
     const rate = parseFloat(formData.rate) || 0
-    const commissionPercent = parseFloat(formData.commission) || 0
-    const labourCost = parseFloat(formData.labour) || 0
-    const transportCost = parseFloat(formData.transport) || 0
-    const totalAmount = qty * rate
-    const commissionAmount = (totalAmount * commissionPercent) / 100
-    const labourTransport = labourCost + transportCost
-    const totalExpenses = commissionAmount + labourTransport
-    const netAmount = totalAmount - totalExpenses
-    const result = { farmerName: formData.farmerName, quantity: qty, rate, totalAmount, commissionAmount, labourTransport, totalExpenses, netAmount }
+    const totalPrice = qty * rate
+
+    let totalCharges = 0
+    if (formData.crop === 'Wheat') {
+      // Use per‑bag farmer charges
+      totalCharges = parseFloat(formData.farmerChargesTotal) || 0
+    } else {
+      // Old style: commission % + labour + transport
+      const commissionAmount = (totalPrice * parseFloat(formData.commissionPercent)) / 100
+      const labourTransport = parseFloat(formData.labourCost) + parseFloat(formData.transportCost)
+      totalCharges = commissionAmount + labourTransport
+    }
+    const netAmount = totalPrice - totalCharges
+
+    const result = {
+      farmerName: formData.farmerName,
+      quantity: qty,
+      rate: rate,
+      totalAmount: totalPrice,
+      totalCharges: totalCharges,
+      netAmount: netAmount,
+      weightKg: kg,
+      bagWeight: formData.bagWeight,
+      bags: formData.bags,
+      farmerChargesPerBag: formData.farmerChargesPerBag,
+      farmerChargesTotal: formData.farmerChargesTotal,
+      // For J‑Form we also need buyer charges (will be calculated in ReceiptModal)
+    }
     setCalculationResult(result)
+
     const currentHash = generateHash(formData)
-    if (lastSavedHash === currentHash) return showToast('Duplicate transaction not saved', 'error')
-    const record = { farmer_name: formData.farmerName, phone: formData.phone, crop: formData.crop, date: formData.date, quantity: qty, rate, commission: parseFloat(formData.commission), labour: labourCost, transport: transportCost, total_amount: totalAmount, net_amount: netAmount, payment_status: 'unpaid' }
+    if (lastSavedHash === currentHash) {
+      showToast('Duplicate transaction not saved', 'error')
+      return
+    }
+
+    const record = {
+      farmer_name: formData.farmerName,
+      phone: formData.phone,
+      crop: formData.crop,
+      date: formData.date,
+      quantity: qty,
+      rate: rate,
+      commission: formData.crop === 'Wheat' ? 0 : parseFloat(formData.commissionPercent),
+      labour: formData.crop === 'Wheat' ? 0 : parseFloat(formData.labourCost),
+      transport: formData.crop === 'Wheat' ? 0 : parseFloat(formData.transportCost),
+      total_amount: totalPrice,
+      net_amount: netAmount,
+      payment_status: 'unpaid',
+      weight_kg: kg,
+      bag_weight: formData.bagWeight,
+      bags: formData.bags,
+      farmer_charges_per_bag: formData.farmerChargesPerBag,
+      farmer_charges_total: totalCharges
+    }
+
     const { error } = await supabase.from('transactions').insert([record])
-    if (error) showToast('Error saving', 'error')
-    else { showToast('Saved!', 'success'); setLastSavedHash(currentHash); clearDraft() }
+    if (error) {
+      showToast('Error saving', 'error')
+    } else {
+      showToast('Saved!', 'success')
+      setLastSavedHash(currentHash)
+      clearDraft()
+    }
   }
 
   const resetForm = () => {
-    setFormData({ crop: 'Wheat', farmerName: '', phone: '', date: new Date().toISOString().split('T')[0], quantity: '', rate: 2585, commission: 2.5, labour: 40, transport: 15 })
-    setCalculationResult(null); clearDraft(); showToast('New transaction ready', 'success')
+    setFormData({
+      crop: 'Wheat',
+      farmerName: '',
+      phone: '',
+      date: new Date().toISOString().split('T')[0],
+      bagWeight: 50,
+      bags: '',
+      weightKg: '',
+      quantity: '',
+      commissionPercent: 2.5,
+      labourCost: 40,
+      transportCost: 15,
+      farmerChargesPerBag: 7.16,
+      farmerChargesTotal: 0
+    })
+    setCalculationResult(null)
+    clearDraft()
+    showToast('New transaction ready', 'success')
   }
 
   const transactionData = { ...formData, ...calculationResult }
@@ -66,23 +210,60 @@ const Calculation = () => {
       <Navbar />
       <BackButton />
       <main className="flex-grow max-w-5xl mx-auto px-4 py-8 w-full">
-        <h2 className="text-3xl font-bold text-primary mb-6">{t('calculation')}</h2>
+        <h2 className="text-3xl font-bold text-primary mb-6">Crop Transaction Calculator</h2>
         <div className="card p-6 md:p-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div><label>{t('cropType')}</label><select name="crop" value={formData.crop} onChange={handleChange} className="input-field"><option>Wheat</option><option>Paddy</option><option>Basmati</option></select></div>
-            <div><label>{t('farmerName')} *</label><input name="farmerName" value={formData.farmerName} onChange={handleChange} className="input-field" /></div>
-            <div><label>{t('phone')}</label><input name="phone" value={formData.phone} onChange={handleChange} className="input-field" /></div>
-            <div><label>{t('date')}</label><input type="date" name="date" value={formData.date} onChange={handleChange} className="input-field" /></div>
-            <div><label>{t('quantity')}</label><input type="number" name="quantity" value={formData.quantity} onChange={handleChange} className="input-field" step="0.01" /></div>
-            <div><label>{t('rate')}</label><input type="number" name="rate" value={formData.rate} onChange={handleChange} className="input-field" step="0.01" /></div>
-            <div><label>{t('commission')}</label><input type="number" name="commission" value={formData.commission} onChange={handleChange} className="input-field" step="0.1" /></div>
-            <div><label>{t('labour')}</label><input type="number" name="labour" value={formData.labour} onChange={handleChange} className="input-field" step="0.01" /></div>
-            <div><label>{t('transport')}</label><input type="number" name="transport" value={formData.transport} onChange={handleChange} className="input-field" step="0.01" /></div>
+            {/* Basic Info */}
+            <div><label className="block font-medium mb-1">Crop Type</label><select name="crop" value={formData.crop} onChange={handleInputChange} className="input-field"><option>Wheat</option><option>Paddy</option><option>Basmati</option></select></div>
+            <div><label className="block font-medium mb-1">Farmer Name *</label><input name="farmerName" value={formData.farmerName} onChange={handleInputChange} className="input-field" /></div>
+            <div><label className="block font-medium mb-1">Phone Number</label><input name="phone" value={formData.phone} onChange={handleInputChange} className="input-field" /></div>
+            <div><label className="block font-medium mb-1">Date</label><input type="date" name="date" value={formData.date} onChange={handleInputChange} className="input-field" /></div>
+
+            {/* Bag Section */}
+            <div><label className="block font-medium mb-1">Weight per Bag (KG)</label><input type="number" name="bagWeight" value={formData.bagWeight} onChange={handleInputChange} className="input-field" step="1" /></div>
+            <div><label className="block font-medium mb-1">Number of Bags</label><input type="number" name="bags" value={formData.bags} onChange={handleInputChange} className="input-field" step="any" placeholder="e.g., 100" /></div>
+            <div><label className="block font-medium mb-1">Total Weight (KG)</label><input type="number" name="weightKg" value={formData.weightKg} disabled className="input-field bg-gray-100 dark:bg-gray-800" /></div>
+            <div><label className="block font-medium mb-1">Quantity (Quintal)</label><input type="number" name="quantity" value={formData.quantity} disabled className="input-field bg-gray-100 dark:bg-gray-800" /></div>
+
+            {/* Financial Fields – conditional based on crop */}
+            {formData.crop === 'Wheat' ? (
+              <>
+                <div><label className="block font-medium mb-1">Farmer Charges (₹ per bag)</label><input type="number" name="farmerChargesPerBag" value={formData.farmerChargesPerBag} onChange={handleInputChange} className="input-field" step="0.01" /></div>
+                <div><label className="block font-medium mb-1">Total Farmer Charges (₹)</label><input type="number" name="farmerChargesTotal" value={formData.farmerChargesTotal} disabled className="input-field bg-gray-100 dark:bg-gray-800" /></div>
+              </>
+            ) : (
+              <>
+                <div><label className="block font-medium mb-1">Commission (%)</label><input type="number" name="commissionPercent" value={formData.commissionPercent} onChange={handleInputChange} className="input-field" step="0.1" /></div>
+                <div><label className="block font-medium mb-1">Labour (₹)</label><input type="number" name="labourCost" value={formData.labourCost} onChange={handleInputChange} className="input-field" step="0.01" /></div>
+                <div><label className="block font-medium mb-1">Transport (₹)</label><input type="number" name="transportCost" value={formData.transportCost} onChange={handleInputChange} className="input-field" step="0.01" /></div>
+              </>
+            )}
+
+            <div><label className="block font-medium mb-1">Rate (₹ per Quintal)</label><input type="number" name="rate" value={formData.rate} onChange={handleInputChange} className="input-field" step="0.01" /></div>
           </div>
-          <div className="mt-8 flex flex-col sm:flex-row gap-4"><button onClick={calculateAndSave} className="btn-primary flex-1"><FaCalculator className="inline mr-2" /> Calculate & Save</button><button onClick={resetForm} className="btn-secondary flex-1"><FaPlus className="inline mr-2" /> New Transaction</button></div>
+
+          <div className="mt-8 flex flex-col sm:flex-row gap-4">
+            <button onClick={calculateAndSave} className="btn-primary flex-1"><FaCalculator className="inline mr-2" /> Calculate & Save</button>
+            <button onClick={resetForm} className="btn-secondary flex-1"><FaPlus className="inline mr-2" /> New Transaction</button>
+          </div>
         </div>
+
         {calculationResult && (
-          <div className="card p-6 mt-8"><h3 className="text-xl font-bold text-primary mb-4">📋 {t('netPayable')}</h3><div className="space-y-2"><div className="flex justify-between"><span>{t('farmerName')}:</span><span>{calculationResult.farmerName}</span></div><div className="flex justify-between"><span>{t('quantity')}:</span><span>{calculationResult.quantity} Qtls</span></div><div className="flex justify-between"><span>Total Amount:</span><span>₹{calculationResult.totalAmount.toFixed(2)}</span></div><div className="flex justify-between"><span>Commission:</span><span>₹{calculationResult.commissionAmount.toFixed(2)}</span></div><div className="flex justify-between"><span>Labour+Transport:</span><span>₹{calculationResult.labourTransport.toFixed(2)}</span></div><div className="flex justify-between border-t pt-2 font-bold text-primary text-lg"><span>{t('netPayable')}:</span><span>₹{calculationResult.netAmount.toFixed(2)}</span></div></div><div className="flex flex-col sm:flex-row gap-4 mt-6"><button onClick={() => setShowIModal(true)} className="bg-green-600 text-white px-5 py-2 rounded-xl flex items-center justify-center gap-2"><FaFileInvoice /> {t('generateIForm')}</button><button onClick={() => setShowJModal(true)} className="bg-orange-600 text-white px-5 py-2 rounded-xl flex items-center justify-center gap-2"><FaFileAlt /> {t('generateJForm')}</button></div></div>
+          <div className="card p-6 mt-8">
+            <h3 className="text-xl font-bold text-primary mb-4">📋 Net Payable</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between"><span>Farmer:</span><span>{calculationResult.farmerName}</span></div>
+              <div className="flex justify-between"><span>Total Weight:</span><span>{calculationResult.weightKg} KG ({(calculationResult.weightKg/100).toFixed(2)} QTL)</span></div>
+              <div className="flex justify-between"><span>Bags ({calculationResult.bagWeight} KG/bag):</span><span>{calculationResult.bags}</span></div>
+              <div className="flex justify-between"><span>Total Price:</span><span>₹{calculationResult.totalAmount.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span>Total Charges:</span><span>₹{calculationResult.totalCharges.toFixed(2)}</span></div>
+              <div className="flex justify-between border-t pt-2 font-bold text-primary text-lg"><span>Net Payable:</span><span>₹{calculationResult.netAmount.toFixed(2)}</span></div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 mt-6">
+              <button onClick={() => setShowIModal(true)} className="bg-green-600 text-white px-5 py-2 rounded-xl"><FaFileInvoice className="inline mr-2" /> Generate I Form</button>
+              <button onClick={() => setShowJModal(true)} className="bg-orange-600 text-white px-5 py-2 rounded-xl"><FaFileAlt className="inline mr-2" /> Generate J Form</button>
+            </div>
+          </div>
         )}
       </main>
       <ReceiptModal isOpen={showIModal} onClose={() => setShowIModal(false)} type="I" data={transactionData} />

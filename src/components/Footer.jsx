@@ -14,7 +14,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Company Info */}
           <div>
-            <h3 className="text-white font-bold text-lg mb-4">Amit Babber Trading & Co.</h3>
+            <h3 className="text-white font-bold text-lg mb-4">Amit Babber Trading Company.</h3>
             <p className="text-sm text-gray-400 leading-relaxed">
               Simplifying mandi crop transactions with technology. Trusted by commission agents and farmers across India.
             </p>
@@ -70,7 +70,7 @@ const Footer = () => {
       {/* Bottom Bar */}
       <div className="border-t border-gray-800 py-5 text-center text-xs text-gray-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-          <p>© {currentYear} Amit Babber Trading and Company. All rights reserved.</p>
+          <p>© {currentYear} Amit Babber Trading Company. All rights reserved.</p>
           <div className="flex gap-4">
             <a href="/privacy" className="hover:text-white transition">Privacy Policy</a>
             <span>•</span>

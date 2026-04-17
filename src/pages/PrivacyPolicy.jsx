@@ -12,7 +12,7 @@ const PrivacyPolicy = () => {
           <h2 className="text-2xl font-bold text-primary mb-4">Privacy Policy</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-4">Last updated: January 2025 | Effective: January 2025</p>
           <div className="space-y-4 text-gray-700 dark:text-gray-300">
-            <p>At Amit Babber Trading and Company, we respect your privacy and are committed to protecting your personal data. This privacy policy explains how we handle your information.</p>
+            <p>At Amit Babber Trading Company, we respect your privacy and are committed to protecting your personal data. This privacy policy explains how we handle your information.</p>
             <h3 className="font-semibold text-primary mt-4">1. Information We Collect</h3>
             <p>We collect transaction data including farmer names, phone numbers, crop details, transaction amounts, and payment status. This data is provided by you when using our calculation and history features.</p>
             <h3 className="font-semibold text-primary mt-4">2. How We Use Your Data</h3>

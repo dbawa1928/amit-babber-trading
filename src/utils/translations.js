@@ -1,6 +1,6 @@
 export const translations = {
   en: {
-    appName: 'Amit Babber Trading & Co.',
+    appName: 'Amit Babber Trading Company.',
     logout: 'Logout',
     home: 'Home',
     calculation: 'Calculation',
