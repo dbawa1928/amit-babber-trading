@@ -1,14 +1,51 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
-import { FaCalculator, FaHistory, FaStar, FaInfoCircle, FaFileContract, FaEnvelope, FaChartLine, FaUserCog, FaUsers } from 'react-icons/fa'
+import { FaCalculator, FaHistory, FaStar, FaInfoCircle, FaFileContract, FaEnvelope, FaChartLine, FaUserCog, FaUsers, FaTractor } from 'react-icons/fa'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../supabaseClient'
 
 const Home = () => {
   const navigate = useNavigate()
   const { t } = useLanguage()
   const { user } = useAuth()
+  const [todaySummary, setTodaySummary] = useState({ totalBags: 0, totalWeight: 0, netAmount: 0 })
+  const [summaryError, setSummaryError] = useState(null)
+
+  useEffect(() => {
+    if (user) fetchTodaySummary()
+  }, [user])
+
+  const fetchTodaySummary = async () => {
+    if (!user?.tenantId) {
+      console.warn('No tenantId for user')
+      return
+    }
+    const today = new Date().toISOString().split('T')[0]
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('bags, weight_kg, net_amount')
+        .eq('date', today)
+        .eq('tenant_id', user.tenantId)
+
+      if (error) {
+        console.error('Supabase error fetching summary:', error)
+        setSummaryError(error.message)
+        return
+      }
+      const totalBags = data?.reduce((s, t) => s + (parseFloat(t.bags) || 0), 0) || 0
+      const totalWeight = data?.reduce((s, t) => s + (parseFloat(t.weight_kg) || 0), 0) || 0
+      const netAmount = data?.reduce((s, t) => s + (parseFloat(t.net_amount) || 0), 0) || 0
+      setTodaySummary({ totalBags, totalWeight, netAmount })
+      setSummaryError(null)
+    } catch (err) {
+      console.error('Unexpected error:', err)
+      setSummaryError(err.message)
+    }
+  }
 
   const menuItems = [
     { title: t('calculation'), icon: FaCalculator, path: '/calculation', bg: 'bg-green-500' },
@@ -20,11 +57,7 @@ const Home = () => {
     { title: t('contact'), icon: FaEnvelope, path: '/contact', bg: 'bg-red-500' },
     { title: 'Profile', icon: FaUserCog, path: '/profile', bg: 'bg-teal-500' },
   ]
-
-  // Only admin sees Manage Workers card
-  if (user?.role === 'admin') {
-    menuItems.push({ title: 'Manage Workers', icon: FaUsers, path: '/manage-workers', bg: 'bg-orange-500' })
-  }
+  if (user?.role === 'admin') menuItems.push({ title: 'Manage Workers', icon: FaUsers, path: '/manage-workers', bg: 'bg-orange-500' })
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
@@ -34,9 +67,26 @@ const Home = () => {
           <h1 className="text-3xl md:text-4xl font-bold">AMIT BABBER TRADING COMPANY</h1>
           <p className="text-green-100 mt-3 text-lg">Mandi Crop Transaction Platform</p>
         </div>
-        <div className="max-w-6xl mx-auto px-4 py-12">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {/* Today's Summary Card */}
+          <div className="mb-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-l-8 border-primary">
+            <div className="flex items-center gap-3 mb-4">
+              <FaTractor className="text-2xl text-primary" />
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Today's Summary ({new Date().toLocaleDateString()})</h2>
+            </div>
+            {summaryError ? (
+              <div className="text-red-500 text-center">Unable to load summary: {summaryError}</div>
+            ) : (
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div><p className="text-sm text-gray-500">Total Bags</p><p className="text-2xl font-bold text-primary">{todaySummary.totalBags.toFixed(0)}</p></div>
+                <div><p className="text-sm text-gray-500">Total Weight (KG)</p><p className="text-2xl font-bold text-primary">{todaySummary.totalWeight.toFixed(0)}</p></div>
+                <div><p className="text-sm text-gray-500">Net Amount (₹)</p><p className="text-2xl font-bold text-primary">₹{todaySummary.netAmount.toFixed(2)}</p></div>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {menuItems.map((item) => (
+            {menuItems.map(item => (
               <button
                 key={item.title}
                 onClick={() => navigate(item.path)}
