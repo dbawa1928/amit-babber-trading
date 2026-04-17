@@ -5,7 +5,7 @@ import BackButton from '../components/BackButton'
 import { supabase } from '../supabaseClient'
 import { useToast } from '../contexts/ToastContext'
 import { useLanguage } from '../contexts/LanguageContext'
-import { FaSearch, FaEye, FaDownload, FaCheckCircle, FaTimesCircle } from 'react-icons/fa'
+import { FaSearch, FaEye, FaDownload, FaCheckCircle, FaTimesCircle, FaTrash } from 'react-icons/fa'
 import { exportToCSV } from '../utils/exportToCSV'
 import LoadingSpinner from '../components/LoadingSpinner'
 
@@ -15,7 +15,6 @@ const History = () => {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const { showToast } = useToast()
   const { t } = useLanguage()
 
@@ -25,21 +24,16 @@ const History = () => {
 
   const fetchTransactions = async () => {
     setLoading(true)
-    setError(null)
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false })
-      if (error) throw error
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) {
+      showToast('Error fetching transactions', 'error')
+    } else {
       setTransactions(data || [])
-    } catch (err) {
-      console.error('Fetch error:', err)
-      setError(err.message)
-      showToast('Failed to load transactions', 'error')
-    } finally {
-      setLoading(false)
     }
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -53,16 +47,27 @@ const History = () => {
 
   const togglePaymentStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid'
-    try {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ payment_status: newStatus })
-        .eq('id', id)
-      if (error) throw error
-      showToast(`Marked as ${newStatus}`, 'success')
-      fetchTransactions() // refresh
-    } catch (err) {
+    const { error } = await supabase
+      .from('transactions')
+      .update({ payment_status: newStatus })
+      .eq('id', id)
+    if (error) {
       showToast('Error updating status', 'error')
+    } else {
+      showToast(`Marked as ${newStatus}`, 'success')
+      fetchTransactions()
+    }
+  }
+
+  const deleteTransaction = async (id, farmerName) => {
+    if (window.confirm(`Delete transaction for ${farmerName}? This action cannot be undone.`)) {
+      const { error } = await supabase.from('transactions').delete().eq('id', id)
+      if (error) {
+        showToast('Error deleting transaction', 'error')
+      } else {
+        showToast('Transaction deleted', 'success')
+        fetchTransactions()
+      }
     }
   }
 
@@ -87,23 +92,6 @@ const History = () => {
     }))
     exportToCSV(exportData, `transactions_${new Date().toISOString().slice(0,10)}.csv`)
     showToast('Exported to CSV', 'success')
-  }
-
-  // Show error if any
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
-        <Navbar />
-        <BackButton />
-        <main className="flex-grow max-w-6xl mx-auto px-4 py-8">
-          <div className="bg-red-100 text-red-700 p-4 rounded-xl text-center">
-            Error loading transactions: {error}
-            <button onClick={fetchTransactions} className="ml-4 underline">Retry</button>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    )
   }
 
   return (
@@ -158,9 +146,14 @@ const History = () => {
                       </button>
                     </div>
                   </div>
-                  <button onClick={() => setSelected(transaction)} className="text-primary hover:text-secondary transition text-xl p-2">
-                    <FaEye />
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => setSelected(transaction)} className="text-primary hover:text-secondary text-xl p-2">
+                      <FaEye />
+                    </button>
+                    <button onClick={() => deleteTransaction(transaction.id, transaction.farmer_name)} className="text-red-500 hover:text-red-700 text-xl p-2">
+                      <FaTrash />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
