@@ -5,9 +5,11 @@ import BackButton from '../components/BackButton'
 import { supabase } from '../supabaseClient'
 import { useToast } from '../contexts/ToastContext'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
 import { FaSearch, FaEye, FaDownload, FaCheckCircle, FaTimesCircle, FaTrash } from 'react-icons/fa'
 import { exportToCSV } from '../utils/exportToCSV'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { usePullToRefresh } from '../hooks/usePullToRefresh'
 
 const History = () => {
   const [transactions, setTransactions] = useState([])
@@ -17,16 +19,16 @@ const History = () => {
   const [loading, setLoading] = useState(true)
   const { showToast } = useToast()
   const { t } = useLanguage()
-
-  useEffect(() => {
-    fetchTransactions()
-  }, [])
+  const { user } = useAuth()
 
   const fetchTransactions = async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('transactions')
-      .select('*')
+      .select(`
+        *,
+        users!user_id (username)
+      `)
       .order('created_at', { ascending: false })
     if (error) {
       showToast('Error fetching transactions', 'error')
@@ -35,6 +37,18 @@ const History = () => {
     }
     setLoading(false)
   }
+
+  // Pull-to-refresh callback
+  const handleRefresh = async () => {
+    await fetchTransactions()
+    showToast('Refreshed', 'success')
+  }
+
+  usePullToRefresh(handleRefresh)
+
+  useEffect(() => {
+    fetchTransactions()
+  }, [])
 
   useEffect(() => {
     if (search.trim() === '') {
@@ -59,7 +73,12 @@ const History = () => {
     }
   }
 
-  const deleteTransaction = async (id, farmerName) => {
+  const deleteTransaction = async (id, farmerName, creatorId) => {
+    const canDelete = user?.role === 'admin' || creatorId === user?.id
+    if (!canDelete) {
+      showToast('You are not allowed to delete this transaction', 'error')
+      return
+    }
     if (window.confirm(`Delete transaction for ${farmerName}? This action cannot be undone.`)) {
       const { error } = await supabase.from('transactions').delete().eq('id', id)
       if (error) {
@@ -88,7 +107,8 @@ const History = () => {
       Transport: t.transport,
       Total: t.total_amount,
       Net: t.net_amount,
-      Status: t.payment_status || 'unpaid'
+      Status: t.payment_status || 'unpaid',
+      'Created By': t.users?.username || 'Unknown'
     }))
     exportToCSV(exportData, `transactions_${new Date().toISOString().slice(0,10)}.csv`)
     showToast('Exported to CSV', 'success')
@@ -123,40 +143,46 @@ const History = () => {
           <div className="text-center py-12 text-gray-500">{t('noRecords')}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {filtered.map(transaction => (
-              <div key={transaction.id} className="card p-5 hover:shadow-lg transition">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg text-primary">{transaction.farmer_name}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{transaction.crop} | {transaction.date}</p>
-                    <p className="text-sm">📞 {transaction.phone || 'N/A'}</p>
-                    <p className="text-sm">📦 {transaction.quantity} Qtls | ₹{transaction.rate}/Qtl</p>
-                    <p className="font-semibold mt-1">💰 Net: ₹{transaction.net_amount?.toFixed(2)}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <button
-                        onClick={() => togglePaymentStatus(transaction.id, transaction.payment_status)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 transition ${
-                          transaction.payment_status === 'paid'
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                            : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                        }`}
-                      >
-                        {transaction.payment_status === 'paid' ? <FaCheckCircle /> : <FaTimesCircle />}
-                        {transaction.payment_status === 'paid' ? t('paid') : t('unpaid')}
+            {filtered.map(transaction => {
+              const canDelete = user?.role === 'admin' || transaction.user_id === user?.id
+              return (
+                <div key={transaction.id} className="card p-5 hover:shadow-lg transition">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-primary">{transaction.farmer_name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{transaction.crop} | {transaction.date}</p>
+                      <p className="text-sm">📞 {transaction.phone || 'N/A'}</p>
+                      <p className="text-sm">📦 {transaction.quantity} Qtls | ₹{transaction.rate}/Qtl</p>
+                      <p className="font-semibold mt-1">💰 Net: ₹{transaction.net_amount?.toFixed(2)}</p>
+                      <p className="text-xs text-gray-400 mt-1">Created by: {transaction.users?.username || 'Unknown'}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <button
+                          onClick={() => togglePaymentStatus(transaction.id, transaction.payment_status)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 transition ${
+                            transaction.payment_status === 'paid'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                          }`}
+                        >
+                          {transaction.payment_status === 'paid' ? <FaCheckCircle /> : <FaTimesCircle />}
+                          {transaction.payment_status === 'paid' ? t('paid') : t('unpaid')}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setSelected(transaction)} className="text-primary hover:text-secondary text-xl p-2">
+                        <FaEye />
                       </button>
+                      {canDelete && (
+                        <button onClick={() => deleteTransaction(transaction.id, transaction.farmer_name, transaction.user_id)} className="text-red-500 hover:text-red-700 text-xl p-2">
+                          <FaTrash />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setSelected(transaction)} className="text-primary hover:text-secondary text-xl p-2">
-                      <FaEye />
-                    </button>
-                    <button onClick={() => deleteTransaction(transaction.id, transaction.farmer_name)} className="text-red-500 hover:text-red-700 text-xl p-2">
-                      <FaTrash />
-                    </button>
-                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </main>
@@ -189,6 +215,7 @@ const TransactionModal = ({ transaction, onClose }) => {
           <DetailRow label="Total Amount" value={`₹${transaction.total_amount?.toFixed(2)}`} />
           <DetailRow label={t('netPayable')} value={`₹${transaction.net_amount?.toFixed(2)}`} className="font-bold text-primary text-lg" />
           <DetailRow label={t('paymentStatus')} value={transaction.payment_status === 'paid' ? t('paid') : t('unpaid')} />
+          <DetailRow label="Created By" value={transaction.users?.username || 'Unknown'} />
         </div>
       </div>
     </div>

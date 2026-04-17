@@ -9,14 +9,14 @@ import { ToastProvider } from './contexts/ToastContext'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AuthProvider>
-      <ThemeProvider>
-        <LanguageProvider>
-          <ToastProvider>
+    <ToastProvider>           {/* ✅ Must be outside AuthProvider */}
+      <AuthProvider>          {/* ✅ Now useToast() will work */}
+        <ThemeProvider>
+          <LanguageProvider>
             <App />
-          </ToastProvider>
-        </LanguageProvider>
-      </ThemeProvider>
-    </AuthProvider>
+          </LanguageProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </ToastProvider>
   </React.StrictMode>,
 )

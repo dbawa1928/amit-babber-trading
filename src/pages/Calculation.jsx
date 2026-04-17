@@ -7,11 +7,13 @@ import { supabase } from '../supabaseClient'
 import { useToast } from '../contexts/ToastContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAutoSave } from '../hooks/useAutoSave'
+import { useAuth } from '../contexts/AuthContext'
 import { FaCalculator, FaFileInvoice, FaFileAlt, FaPlus } from 'react-icons/fa'
 
 const Calculation = () => {
   const { showToast } = useToast()
   const { t } = useLanguage()
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     crop: 'Wheat',
     farmerName: '',
@@ -21,12 +23,11 @@ const Calculation = () => {
     bags: '',
     weightKg: '',
     quantity: '',
-    // For non‑wheat crops
+    rate: 2585,
     commissionPercent: 2.5,
     labourCost: 40,
     transportCost: 15,
-    // For wheat – farmer per‑bag charges
-    farmerChargesPerBag: 7.16, // auto for 50kg
+    farmerChargesPerBag: 7.16,
     farmerChargesTotal: 0
   })
   const [calculationResult, setCalculationResult] = useState(null)
@@ -35,20 +36,17 @@ const Calculation = () => {
   const [lastSavedHash, setLastSavedHash] = useState(null)
   const { loadDraft, clearDraft } = useAutoSave('calc_draft', formData)
 
-  // Load draft
   useEffect(() => {
     const draft = loadDraft()
     if (draft && draft.farmerName) setFormData(draft)
   }, [])
 
-  // Crop defaults (rates, etc.)
   const cropDefaults = {
     Wheat: { rate: 2585, commissionPercent: 2.5, labourCost: 40, transportCost: 15 },
     Paddy: { rate: 2370, commissionPercent: 2.5, labourCost: 40, transportCost: 15 },
     Basmati: { rate: 4000, commissionPercent: 2.5, labourCost: 40, transportCost: 15 }
   }
 
-  // Update rate and other defaults when crop changes
   useEffect(() => {
     const defaults = cropDefaults[formData.crop]
     setFormData(prev => ({
@@ -60,19 +58,17 @@ const Calculation = () => {
     }))
   }, [formData.crop])
 
-  // Auto‑set farmer charges per bag for Wheat based on bag weight
   useEffect(() => {
     if (formData.crop === 'Wheat') {
       const bagWt = parseFloat(formData.bagWeight)
       let perBag = 0
-      if (bagWt === 50) perBag = 7.16   // Cleaning 2.55 + Commission 4.61
-      else if (bagWt === 30) perBag = 4.30 // Cleaning 1.56 + Commission 2.74
-      else perBag = 0 // custom bag weight, user must enter manually
+      if (bagWt === 50) perBag = 7.16
+      else if (bagWt === 30) perBag = 4.30
+      else perBag = 0
       setFormData(prev => ({ ...prev, farmerChargesPerBag: perBag }))
     }
   }, [formData.crop, formData.bagWeight])
 
-  // Auto‑calculate total weight and quantity from bags and bag weight
   useEffect(() => {
     const bagWt = parseFloat(formData.bagWeight) || 50
     const numBags = parseFloat(formData.bags)
@@ -120,10 +116,8 @@ const Calculation = () => {
 
     let totalCharges = 0
     if (formData.crop === 'Wheat') {
-      // Use per‑bag farmer charges
       totalCharges = parseFloat(formData.farmerChargesTotal) || 0
     } else {
-      // Old style: commission % + labour + transport
       const commissionAmount = (totalPrice * parseFloat(formData.commissionPercent)) / 100
       const labourTransport = parseFloat(formData.labourCost) + parseFloat(formData.transportCost)
       totalCharges = commissionAmount + labourTransport
@@ -141,8 +135,7 @@ const Calculation = () => {
       bagWeight: formData.bagWeight,
       bags: formData.bags,
       farmerChargesPerBag: formData.farmerChargesPerBag,
-      farmerChargesTotal: formData.farmerChargesTotal,
-      // For J‑Form we also need buyer charges (will be calculated in ReceiptModal)
+      farmerChargesTotal: totalCharges
     }
     setCalculationResult(result)
 
@@ -169,7 +162,8 @@ const Calculation = () => {
       bag_weight: formData.bagWeight,
       bags: formData.bags,
       farmer_charges_per_bag: formData.farmerChargesPerBag,
-      farmer_charges_total: totalCharges
+      farmer_charges_total: totalCharges,
+      user_id: user?.id   // <<< Store which user created this transaction
     }
 
     const { error } = await supabase.from('transactions').insert([record])
@@ -192,6 +186,7 @@ const Calculation = () => {
       bags: '',
       weightKg: '',
       quantity: '',
+      rate: 2585,
       commissionPercent: 2.5,
       labourCost: 40,
       transportCost: 15,
@@ -213,19 +208,14 @@ const Calculation = () => {
         <h2 className="text-3xl font-bold text-primary mb-6">Crop Transaction Calculator</h2>
         <div className="card p-6 md:p-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Basic Info */}
             <div><label className="block font-medium mb-1">Crop Type</label><select name="crop" value={formData.crop} onChange={handleInputChange} className="input-field"><option>Wheat</option><option>Paddy</option><option>Basmati</option></select></div>
             <div><label className="block font-medium mb-1">Farmer Name *</label><input name="farmerName" value={formData.farmerName} onChange={handleInputChange} className="input-field" /></div>
             <div><label className="block font-medium mb-1">Phone Number</label><input name="phone" value={formData.phone} onChange={handleInputChange} className="input-field" /></div>
             <div><label className="block font-medium mb-1">Date</label><input type="date" name="date" value={formData.date} onChange={handleInputChange} className="input-field" /></div>
-
-            {/* Bag Section */}
             <div><label className="block font-medium mb-1">Weight per Bag (KG)</label><input type="number" name="bagWeight" value={formData.bagWeight} onChange={handleInputChange} className="input-field" step="1" /></div>
             <div><label className="block font-medium mb-1">Number of Bags</label><input type="number" name="bags" value={formData.bags} onChange={handleInputChange} className="input-field" step="any" placeholder="e.g., 100" /></div>
             <div><label className="block font-medium mb-1">Total Weight (KG)</label><input type="number" name="weightKg" value={formData.weightKg} disabled className="input-field bg-gray-100 dark:bg-gray-800" /></div>
             <div><label className="block font-medium mb-1">Quantity (Quintal)</label><input type="number" name="quantity" value={formData.quantity} disabled className="input-field bg-gray-100 dark:bg-gray-800" /></div>
-
-            {/* Financial Fields – conditional based on crop */}
             {formData.crop === 'Wheat' ? (
               <>
                 <div><label className="block font-medium mb-1">Farmer Charges (₹ per bag)</label><input type="number" name="farmerChargesPerBag" value={formData.farmerChargesPerBag} onChange={handleInputChange} className="input-field" step="0.01" /></div>
@@ -238,16 +228,13 @@ const Calculation = () => {
                 <div><label className="block font-medium mb-1">Transport (₹)</label><input type="number" name="transportCost" value={formData.transportCost} onChange={handleInputChange} className="input-field" step="0.01" /></div>
               </>
             )}
-
             <div><label className="block font-medium mb-1">Rate (₹ per Quintal)</label><input type="number" name="rate" value={formData.rate} onChange={handleInputChange} className="input-field" step="0.01" /></div>
           </div>
-
           <div className="mt-8 flex flex-col sm:flex-row gap-4">
             <button onClick={calculateAndSave} className="btn-primary flex-1"><FaCalculator className="inline mr-2" /> Calculate & Save</button>
             <button onClick={resetForm} className="btn-secondary flex-1"><FaPlus className="inline mr-2" /> New Transaction</button>
           </div>
         </div>
-
         {calculationResult && (
           <div className="card p-6 mt-8">
             <h3 className="text-xl font-bold text-primary mb-4">📋 Net Payable</h3>
